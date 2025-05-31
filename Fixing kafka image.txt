@@ -1,0 +1,11 @@
+to fix the kafka image 
+
+the user id of kafka is 1000
+
+initially run image as root create the needed directory then give ownership to uid of 1000 with the syntax
+
+mkdir /kafka/[the thing it logs out as an error]
+
+chown -R 1000:1000 /kafka
+
+after that you can run as non-root

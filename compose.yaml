@@ -1,0 +1,151 @@
+services:
+  gateway:
+    image: bitnami/nginx:latest
+    container_name: gateway
+    depends_on:
+      - jwtservice
+      - eventcoreservice
+      - paymentservice
+      - bookingservice
+      - seatservice
+      - searchservice
+      - eventseatgenerationservice
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/opt/bitnami/nginx/conf/nginx.conf
+
+  jwtservice:
+    build:
+      context: ./jwtauthservice
+    ports:
+      - "5000:8080"
+
+  eventcoreservice:
+    build:
+      context: ./eventcoreservice
+    depends_on:
+      MainDatabase:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  eventseatgenerationservice:
+    build:
+      context: ./eventseatgenerationservice
+    depends_on:
+      MainDatabase:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  bookingservice:
+    build:
+      context: ./bookingservice
+    depends_on:
+      MainDatabase:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  paymentservice:
+    build:
+      context: ./paymentservice
+    depends_on:
+      MainDatabase:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  searchservice:
+    build:
+      context: ./searchservice
+    depends_on:
+      MainDatabase:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  seatservice:
+    build:
+      context: ./seatservice
+    depends_on:
+      MainDatabase:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  MainDatabase:
+    image: postgres:latest
+    container_name: ticketSystem
+    environment:
+      POSTGRES_DB: ticketSystem
+      POSTGRES_USER: code
+      POSTGRES_PASSWORD: password
+    command: >
+      postgres -c wal_level=logical
+               -c max_replication_slots=10
+               -c max-wal_senders=10
+    ports:
+      - "3001:5432"
+    healthcheck:
+      test: ["CMD","pg_isready", "-U" ,"code"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+  kafka:
+    image: apache/kafka:latest
+#    user: root
+    container_name: kafka
+    hostname: kafka
+    volumes:
+      - ./kafka-config/server.properties:/opt/kafka/config/server.properties
+      - kafka-data:/kafka/kraft-combined-logs
+    command:
+      - bash
+      - -c
+      - |
+        if [ ! -f /kafka/kraft-combined-logs/meta.properties ]; then
+          KAFKA_CLUSTER_ID=$$(/opt/kafka/bin/kafka-storage.sh random-uuid)
+          /opt/kafka/bin/kafka-storage.sh format -t $$KAFKA_CLUSTER_ID -c /opt/kafka/config/server.properties --ignore-formatted
+        fi
+        /opt/kafka/bin/kafka-server-start.sh /opt/kafka/config/server.properties
+    ports:
+      - "9092:9092"
+
+  debezium:
+    image: debezium/connect:2.7.3.Final
+    container_name: debezium_connector
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: 1
+      CONFIG_STORAGE_TOPIC: postgres_config
+      OFFSET_STORAGE_TOPIC: postgres_offset
+      STATUS_STORAGE_TOPIC: postgres_status
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+    depends_on:
+      - kafka
+    ports:
+      - "8083:8083"
+    volumes:
+      - debezium-data:/debezium
+
+  redis:
+    image: bitnami/redis
+    container_name: redis
+    environment:
+      REDIS_PASSWORD: password
+    ports:
+      - "6379:6379"
+
+volumes:
+  db-data:
+  debezium-data:
+  kafka-data:
+  nginx-data:

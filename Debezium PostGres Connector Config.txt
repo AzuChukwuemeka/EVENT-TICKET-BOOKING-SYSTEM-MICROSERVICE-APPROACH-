@@ -1,0 +1,22 @@
+1. Make sure you ran the DB file to create the publication called custom_cdc;
+2. You can use default user to access it's superuser by default and has replication priviledges (in prod create a replica user)
+3. Below is the config to be sent to the connector with post to /connectors
+
+{
+    "name" : "event-system-connector",
+    "config": {
+        "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+        "plugin.name" : "pgoutput",
+        "database.hostname": "ticketSystem",
+        "database.port": "5432",
+        "database.user": "code",
+        "database.password": "password",
+        "database.dbname":"ticketSystem",
+        "database.server.name":"ticketSystem",
+        "slot.name":"debezium_slot",
+        "topic.prefix": "event",
+        "publication.name":"custom_cdc",
+        "database.history.kafka.bootstrap.servers":"kafka:9092",
+        "database.history.kafka.topic":"schema-changes.inventory"
+    }
+}

@@ -1,0 +1,2 @@
+1. Kafka logs auto creation for __consumer_offsets, just create the topic manually by exec into the kafka container and creating the topic
+2. Database isseus make sure to load all files.
